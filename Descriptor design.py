@@ -111,7 +111,7 @@ class FileSelectionWidget(QWidget):
 
                         for number in range(0,count_element):
                             for each_descriptor in descriptor_list:
-                                writer .writerow({f"element{number + 1}_{each_descriptor}":element(symbol_list[number]).__dict__[each_descriptor]})
+                                writer.writerow({f"element{number + 1}_{each_descriptor}":element(symbol_list[number]).__dict__[each_descriptor]})
 
                         processed_count += 1
                         progress_dialog.setValue(processed_count)
