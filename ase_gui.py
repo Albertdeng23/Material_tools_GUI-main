@@ -9,7 +9,7 @@ from ase.calculators.emt import EMT
 from ase.calculators.vasp import Vasp
 from ase.io import read
 from PyQt5 import QtCore, QtGui, QtWidgets
-from PyQt5.QtGui import QFont, QColor
+from PyQt5.QtGui import QFont, QColor , QPixmap
 from PyQt5.QtCore import Qt,QThread,pyqtSignal
 import os
 from tqdm import tqdm
@@ -18,6 +18,23 @@ import time
 
 ### TODO 
 #   1.使用VASP生成POSCAR , INCAR 之类的输入文件
+
+###----------------------------------------------------------------------------------------------------------####
+##工具
+def timer(func):
+    def wrapper(*args, **kwargs):
+        start_time = time.time()
+        _ = func(*args, **kwargs)
+        end_time = time.time()
+        execution_time = end_time - start_time
+        print(f"Function {func.__name__} executed in {execution_time:.2f} seconds.")
+        return execution_time
+    return wrapper
+
+
+###----------------------------------------------------------------------------------------------------------####
+
+
 
 ### mainUI类
 class Ui_AseAtomInput(object):
@@ -258,6 +275,7 @@ class ASE_ui(Ui_AseAtomInput,QMainWindow):
         self.Process_Button.clicked.connect(self.startCalculation)
         self.actionVision.triggered.connect(self.versionButton)
 
+    
     def addAtom(self):
         element = self.AtomInPut.text()
         x = float(self.X_Input.text())
@@ -340,10 +358,17 @@ class ASE_ui(Ui_AseAtomInput,QMainWindow):
 
 
                 try:
-                    
-                    self.atom_calculator.run_vasp_calculation(hostname , username , password)
+                    ssh = paramiko.SSHClient()
+                    ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+                    ssh.connect(hostname, username=username, password=password)
 
-                    QMessageBox.information(self, f'successful', f'successfully connect to {hostname}')
+                    use_times = self.atom_calculator.run_vasp_calculation(ssh)
+
+                    QMessageBox.information(self, f'successful', f'successfully connect to {hostname} \n result file path : .\\Results \n use time: {use_times}')
+
+                except paramiko.AuthenticationException:
+                    QMessageBox.information(self, f'Authentication Error','please check you account and password')
+                    self.connectRemoteServer()
 
                 except Exception as e:
                     error_dialog = QErrorMessage(self)
@@ -452,13 +477,13 @@ class SSHReader(QThread):
             self.output_signal.emit(chunk)
             self.msleep(1)
 
-
 class VASPOutputWidget(QWidget):
     def __init__(self):
         super().__init__()
         layout = QVBoxLayout()
         self.text_area = QTextEdit()
         layout.addWidget(self.text_area)
+        self.text_area.setReadOnly(True)
         self.setWindowTitle('VASP Output')
         self.setLayout(layout)
         self.resize(800, 800)  # Resize the QWidget to desired dimensions
@@ -568,14 +593,11 @@ class AtomCalculator:
             self.energy = None
             self.forces = None
 
-
-    def run_vasp_calculation(self, hostname, username, passwd):
+    @timer
+    def run_vasp_calculation(self, ssh):
         try:
             # Initialize SSH client
-            ssh = paramiko.SSHClient()
-            ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-            ssh.connect(hostname, username=username, password=passwd)
-
+            
             # Create a folder for VASP calculation
             _, stdout, _ = ssh.exec_command('mkdir -p VASP_calculation')
 
@@ -610,8 +632,11 @@ class AtomCalculator:
             local_result_folder = 'Results'
             os.makedirs(local_result_folder, exist_ok=True)
             sftp = ssh.open_sftp()
-            for file in local_files + ['OUTCAR', 'CONTCAR']:  # Assuming you want some output files like OUTCAR and CONTCAR
-                sftp.get(os.path.join(remote_path, file), os.path.join(local_result_folder, file))
+            remote_files = sftp.listdir(remote_path)
+            for file in remote_files:
+                remote_file_path = os.path.join(remote_path, file)
+                local_file_path = os.path.join(local_result_folder, file)
+                sftp.get(remote_file_path, local_file_path)
             sftp.close()
 
             print("VASP calculation completed successfully.")
