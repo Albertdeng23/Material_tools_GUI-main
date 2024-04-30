@@ -9,10 +9,9 @@ from ase.calculators.emt import EMT
 from ase.calculators.vasp import Vasp
 from ase.io import read
 from PyQt5 import QtCore, QtGui, QtWidgets
-from PyQt5.QtGui import QFont, QColor , QPixmap
-from PyQt5.QtCore import Qt,QThread,pyqtSignal
+from PyQt5.QtGui import QFont, QColor ,  QPalette , QSyntaxHighlighter , QTextCharFormat
+from PyQt5.QtCore import Qt,QThread,pyqtSignal, QRegularExpression , QRegExp
 import os
-from tqdm import tqdm
 import time
 
 
@@ -364,7 +363,7 @@ class ASE_ui(Ui_AseAtomInput,QMainWindow):
 
                     use_times = self.atom_calculator.run_vasp_calculation(ssh)
 
-                    QMessageBox.information(self, f'successful', f'successfully connect to {hostname} \n result file path : .\\Results \n use time: {use_times}')
+                    QMessageBox.information(self, f'successful', f'successfully connect to {hostname} \n Result file path : .\\Results \n Use Time: {use_times /60 : .2f} minute. ')
 
                 except paramiko.AuthenticationException:
                     QMessageBox.information(self, f'Authentication Error','please check you account and password')
@@ -471,28 +470,71 @@ class SSHReader(QThread):
                 # yield to the event loop to allow the main thread to handle the data
                 self.msleep(1)
 
-        # after the process exited, there still can be some data to read
+         # after the process exited, there still can be some data to read
         while self.channel.recv_ready():
             chunk = self.channel.recv(4096).decode(errors='replace')
             self.output_signal.emit(chunk)
             self.msleep(1)
 
+
+class VASPSyntaxHighlighter(QSyntaxHighlighter):
+    def highlightBlock(self, text):
+        yellow_format = QTextCharFormat()
+        yellow_format.setForeground(QColor(255, 255, 0))
+
+        light_blue_format = QTextCharFormat()
+        light_blue_format.setForeground(QColor(173, 216, 230))
+
+        green_format = QTextCharFormat()
+        green_format.setForeground(QColor(0, 255, 0))
+
+        if text.strip().startswith('DAV'):
+            self.setFormat(0, len(text), yellow_format)
+            dav_index = text.index('DAV')
+            self.setFormat(dav_index, 3, light_blue_format)
+        elif "N       E                     dE             d eps       ncg     rms          rms(c)" in text:
+            self.setFormat(0, len(text), green_format)
+
+
 class VASPOutputWidget(QWidget):
     def __init__(self):
         super().__init__()
         layout = QVBoxLayout()
+
+        # Create a scroll area
+        scroll_area = QScrollArea()
+        scroll_area.setWidgetResizable(True)
+
+        # Create the text edit widget
         self.text_area = QTextEdit()
-        layout.addWidget(self.text_area)
+        
+        self.highlighter = VASPSyntaxHighlighter(self.text_area.document())
+        
         self.text_area.setReadOnly(True)
+        self.text_area.setLineWrapMode(QTextEdit.NoWrap)  # Disable line wrapping
+
+        # Set the font
+        font = QFont("Courier New", 12)
+        self.text_area.setFont(font)
+
+        # Set the background color
+        palette = self.text_area.palette()
+        palette.setColor(QPalette.Base, QColor(50, 50, 50))
+        palette.setColor(QPalette.Text, QColor(200, 200, 200))
+        self.text_area.setPalette(palette)
+
+        # Set the text edit widget as the scroll area's widget
+        scroll_area.setWidget(self.text_area)
+
+        layout.addWidget(scroll_area)
         self.setWindowTitle('VASP Output')
         self.setLayout(layout)
-        self.resize(800, 800)  # Resize the QWidget to desired dimensions
+        self.resize(1280, 720)
 
     def append_text(self, text):
         self.text_area.moveCursor(QtGui.QTextCursor.End)  # move cursor to end
         self.text_area.insertPlainText(text)
         self.text_area.moveCursor(QtGui.QTextCursor.End)
-
 ### VASP 设置参数类
 class VaspParamDialog(QDialog):
     def __init__(self, parent=None):
