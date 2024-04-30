@@ -9,9 +9,12 @@ from ase.calculators.emt import EMT
 from ase.calculators.vasp import Vasp
 from ase.io import read
 from PyQt5 import QtCore, QtGui, QtWidgets
-from PyQt5.QtGui import QFont, QColor, QPalette
-from PyQt5.QtCore import Qt
+from PyQt5.QtGui import QFont, QColor
+from PyQt5.QtCore import Qt,QThread,pyqtSignal
 import os
+from tqdm import tqdm
+import time
+
 
 ### TODO 
 #   1.使用VASP生成POSCAR , INCAR 之类的输入文件
@@ -185,39 +188,45 @@ class MyApp(QWidget):
     def __init__(self):
         super().__init__()
         self.initUI()
-    
+
     def initUI(self):
         # 设置窗口基本属性
         self.setWindowTitle('Software Information')
-        self.setGeometry(300, 300, 400, 300)
-        self.setMinimumSize(400, 300)
+        self.setGeometry(300, 300, 500, 350)
+        self.setMinimumSize(500, 350)
 
-        # 设置窗口背景色
-        palette = QPalette()
-        palette.setColor(QPalette.Window, QColor(240, 240, 240))
-        self.setPalette(palette)
+        # 设置窗口背景颜色
+        self.setStyleSheet("background-color: #333333;")
+        
+        # 创建阴影效果
+        shadow_effect = QGraphicsDropShadowEffect()
+        shadow_effect.setBlurRadius(15)
+        shadow_effect.setColor(QColor(0, 0, 0, 180))
+        shadow_effect.setXOffset(5)
+        shadow_effect.setYOffset(5)
 
         # 设置布局
         layout = QVBoxLayout()
 
         # 设置并添加版本标签
         version_label = QLabel('Version 1.2')
-        version_label.setFont(QFont('Arial', 18, QFont.Bold))
-        version_label.setStyleSheet("color: blue; margin-bottom: 20px;")
+        version_label.setFont(QFont('Arial', 20, QFont.Bold))
+        version_label.setStyleSheet("color: #DDDDDD; margin-bottom: 20px;")
         version_label.setAlignment(Qt.AlignCenter)
+        version_label.setGraphicsEffect(shadow_effect)
         layout.addWidget(version_label)
 
         # 设置并添加GitHub标签
         github_label = QLabel('GitHub: https://example.com')
         github_label.setFont(QFont('Arial', 16))
-        github_label.setStyleSheet("background-color: white; color: black; padding: 10px; border: 2px solid #0066CC;")
+        github_label.setStyleSheet("background-color: #FFFFFF; color: #333333; padding: 12px; border-radius: 10px; border: 1px solid #007ACC;")
         github_label.setAlignment(Qt.AlignCenter)
         layout.addWidget(github_label)
 
         # 设置并添加Release标签
         release_label = QLabel('Release: https://example.com/release')
         release_label.setFont(QFont('Arial', 16))
-        release_label.setStyleSheet("background-color: white; color: black; padding: 10px; border: 2px solid #0066CC;")
+        release_label.setStyleSheet("background-color: #FFFFFF; color: #333333; padding: 12px; border-radius: 10px; border: 1px solid #007ACC;")
         release_label.setAlignment(Qt.AlignCenter)
         layout.addWidget(release_label)
 
@@ -225,6 +234,7 @@ class MyApp(QWidget):
         self.setLayout(layout)
 
 ## about author类
+
 
 
 ### 创建MainWindow
@@ -377,6 +387,7 @@ class RemoteServerDialog(QDialog):
             'password': self.password_input.text(),
         }
         return self.server_info
+
 ### 从CIF文件导入类
 class CIFImportDialog(QDialog):
     def __init__(self, parent=None):
@@ -418,6 +429,44 @@ class CIFImportDialog(QDialog):
             error_dialog = QErrorMessage(self)
             error_dialog.showMessage(f'Could not improt CIF file：{str(e)}')
             return None
+
+### VASP output ui 类
+class SSHReader(QThread):
+    output_signal = pyqtSignal(str)
+
+    def __init__(self, channel):
+        super().__init__()
+        self.channel = channel
+
+    def run(self):
+        while not self.channel.exit_status_ready():
+            if self.channel.recv_ready():
+                chunk = self.channel.recv(4096).decode(errors='replace')
+                self.output_signal.emit(chunk)
+                # yield to the event loop to allow the main thread to handle the data
+                self.msleep(1)
+
+        # after the process exited, there still can be some data to read
+        while self.channel.recv_ready():
+            chunk = self.channel.recv(4096).decode(errors='replace')
+            self.output_signal.emit(chunk)
+            self.msleep(1)
+
+
+class VASPOutputWidget(QWidget):
+    def __init__(self):
+        super().__init__()
+        layout = QVBoxLayout()
+        self.text_area = QTextEdit()
+        layout.addWidget(self.text_area)
+        self.setWindowTitle('VASP Output')
+        self.setLayout(layout)
+        self.resize(800, 800)  # Resize the QWidget to desired dimensions
+
+    def append_text(self, text):
+        self.text_area.moveCursor(QtGui.QTextCursor.End)  # move cursor to end
+        self.text_area.insertPlainText(text)
+        self.text_area.moveCursor(QtGui.QTextCursor.End)
 
 ### VASP 设置参数类
 class VaspParamDialog(QDialog):
@@ -520,16 +569,19 @@ class AtomCalculator:
             self.forces = None
 
 
-    def run_vasp_calculation(self , hostname , username , passwd):
+    def run_vasp_calculation(self, hostname, username, passwd):
         try:
-            # 连接到linux服务器，基于paramiko
+            # Initialize SSH client
             ssh = paramiko.SSHClient()
             ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
             ssh.connect(hostname, username=username, password=passwd)
 
             # Create a folder for VASP calculation
-            ssh.exec_command('mkdir -p VASP_calculation')
-            
+            _, stdout, _ = ssh.exec_command('mkdir -p VASP_calculation')
+
+            # Confirm folder creation
+            stdout.channel.recv_exit_status()
+
             # Transfer files to the remote server
             sftp = ssh.open_sftp()
             local_files = ['INCAR', 'POSCAR', 'POTCAR', 'KPOINTS']
@@ -538,21 +590,33 @@ class AtomCalculator:
                 sftp.put(file, os.path.join(remote_path, file))
             sftp.close()
 
-
             # Execute VASP calculation
-            stdin, stdout, stderr = ssh.exec_command('cd {} && vasp_std'.format(remote_path))
-            # Wait for the command to finish
-            stdout.channel.recv_exit_status()
+            transport = ssh.get_transport()
+            channel = transport.open_session()
+            channel.exec_command(f'cd {remote_path} && vasp_std')
+            
+            widget = VASPOutputWidget()
+            thread = SSHReader(channel)
+            thread.output_signal.connect(widget.append_text)
+            
+            thread.start()
+            widget.show()
+
+            # Wait for the calculation
+            while thread.isRunning():
+                QApplication.processEvents()
 
             # Transfer results back to local Windows folder
             local_result_folder = 'Results'
             os.makedirs(local_result_folder, exist_ok=True)
-            for file in local_files:
+            sftp = ssh.open_sftp()
+            for file in local_files + ['OUTCAR', 'CONTCAR']:  # Assuming you want some output files like OUTCAR and CONTCAR
                 sftp.get(os.path.join(remote_path, file), os.path.join(local_result_folder, file))
             sftp.close()
 
             print("VASP calculation completed successfully.")
             ssh.close()
+
         except Exception as e:
             print("An error occurred:", e)
 

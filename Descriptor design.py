@@ -65,7 +65,19 @@ class FileSelectionWidget(QWidget):
         if hasattr(self, 'folder_path') and hasattr(self, 'save_path'):
             print("正在处理，请稍候.....")
 
-            fieldnames = []
+            descriptor_list = ["abundance_crust", 'abundance_sea', 'atomic_number', 'atomic_radius', 'atomic_radius_rahm', 'atomic_volume',
+                                           'atomic_weight', 'atomic_weight_uncertainty', 'block','c6', 'c6_gb', 'cas', 'covalent_radius_bragg',
+                                           'covalent_radius_cordero','element1_covalent_radius_pyykko','covalent_radius_pyykko_double', 'covalent_radius_pyykko_triple',
+                                           'cpk_color','density','description', 'dipole_polarizability','dipole_polarizability_unc','discoverers',
+                                           'discovery_location', 'discovery_year','ec','econf', 'electron_affinity', 'en_allen', 'en_ghosh','en_pauling',
+                                           'evaporation_heat', 'fusion_heat','gas_basicity','geochemical_class', 'glawe_number', 'goldschmidt_class','group',
+                                           'group_id', 'heat_of_formation','is_monoisotopic', 'is_radioactive', 'isotopes','jmol_color','lattice_constant',
+                                           'lattice_structure', 'mendeleev_number','metallic_radius', 'metallic_radius_c12','molar_heat_capacity', 'molcas_gv_color',
+                                           'name','name_origin','period', 'pettifor_number', 'phase_transitions','proton_affinity','screening_constants', 'sources',
+                                           'specific_heat_capacity', 'symbol', 'thermal_conductivity','uses','vdw_radius', 'vdw_radius_alvarez', 'vdw_radius_batsanov',
+                                           'vdw_radius_bondi', 'vdw_radius_dreiding','vdw_radius_mm3', 'vdw_radius_rt', 'vdw_radius_truhlar','vdw_radius_uff']
+
+            fieldnames = [f"element{number + 1}_{descriptor}" for number in range(count_element) for descriptor in descriptor_list]
             element_list = []
 
             progress_dialog = QProgressDialog("正在处理，请稍候.....", "取消", 0, 0, self)
@@ -97,17 +109,7 @@ class FileSelectionWidget(QWidget):
                             writer_dict[f"element{count_element + 1}_y"] = structure.cart_coords[number][1]
                             writer_dict[f"element{count_element + 1}_z"] = structure.cart_coords[number][2]
 
-                        descriptor_list = ["abundance_crust", 'abundance_sea', 'atomic_number', 'atomic_radius', 'atomic_radius_rahm', 'atomic_volume',
-                                           'atomic_weight', 'atomic_weight_uncertainty', 'block','c6', 'c6_gb', 'cas', 'covalent_radius_bragg',
-                                           'covalent_radius_cordero','element1_covalent_radius_pyykko','covalent_radius_pyykko_double', 'covalent_radius_pyykko_triple',
-                                           'cpk_color','density','description', 'dipole_polarizability','dipole_polarizability_unc','discoverers',
-                                           'discovery_location', 'discovery_year','ec','econf', 'electron_affinity', 'en_allen', 'en_ghosh','en_pauling',
-                                           'evaporation_heat', 'fusion_heat','gas_basicity','geochemical_class', 'glawe_number', 'goldschmidt_class','group',
-                                           'group_id', 'heat_of_formation','is_monoisotopic', 'is_radioactive', 'isotopes','jmol_color','lattice_constant',
-                                           'lattice_structure', 'mendeleev_number','metallic_radius', 'metallic_radius_c12','molar_heat_capacity', 'molcas_gv_color',
-                                           'name','name_origin','period', 'pettifor_number', 'phase_transitions','proton_affinity','screening_constants', 'sources',
-                                           'specific_heat_capacity', 'symbol', 'thermal_conductivity','uses','vdw_radius', 'vdw_radius_alvarez', 'vdw_radius_batsanov',
-                                           'vdw_radius_bondi', 'vdw_radius_dreiding','vdw_radius_mm3', 'vdw_radius_rt', 'vdw_radius_truhlar','vdw_radius_uff']
+                        
 
                         for number in range(0,count_element):
                             for each_descriptor in descriptor_list:
