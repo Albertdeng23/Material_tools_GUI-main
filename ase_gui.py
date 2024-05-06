@@ -401,9 +401,9 @@ class ASE_ui(Ui_AseAtomInput,QMainWindow):
                     self.ssh = paramiko.SSHClient()
                     self.ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
                     self.ssh.connect(self.hostname, username=self.username, password=self.password)
-                    use_times = self.atom_calculator.run_vasp_calculation(ssh , file_path)
+                    use_times = self.atom_calculator.run_vasp_calculation(self.ssh , self.file_path)
 
-                    QMessageBox.information(self, f'successful', f'successfully connect to {hostname} \n Result file path : .\\Results \n Use Time: {use_times /60 : .2f} minute. ')
+                    QMessageBox.information(self, f'successful', f'successfully connect to {self.hostname} \n Result file path : .\\Results \n Use Time: {use_times /60 : .2f} minute. ')
 
 
 
@@ -536,8 +536,6 @@ class SSHReader(QThread):
             chunk = self.channel.recv(4096).decode(errors='replace')
             self.output_signal.emit(chunk)
             self.msleep(1)
-
-
 class VASPSyntaxHighlighter(QSyntaxHighlighter):
     def highlightBlock(self, text):
         yellow_format = QTextCharFormat()
@@ -555,8 +553,6 @@ class VASPSyntaxHighlighter(QSyntaxHighlighter):
             self.setFormat(dav_index, 3, light_blue_format)
         elif "N       E                     dE             d eps       ncg     rms          rms(c)" in text:
             self.setFormat(0, len(text), green_format)
-
-
 class VASPOutputWidget(QWidget):
     def __init__(self):
         super().__init__()
