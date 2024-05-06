@@ -9,8 +9,8 @@ from ase.calculators.emt import EMT
 from ase.calculators.vasp import Vasp
 from ase.io import read
 from PyQt5 import QtCore, QtGui, QtWidgets
-from PyQt5.QtGui import QFont, QColor ,  QPalette , QSyntaxHighlighter , QTextCharFormat
-from PyQt5.QtCore import Qt,QThread,pyqtSignal, QRegularExpression , QRegExp
+from PyQt5.QtGui import *
+from PyQt5.QtCore import *
 import os
 import time
 
@@ -211,38 +211,46 @@ class MyApp(QWidget):
         self.setGeometry(300, 300, 500, 350)
         self.setMinimumSize(500, 350)
 
-        # 设置窗口背景颜色
-        self.setStyleSheet("background-color: #333333;")
-        
-        # 创建阴影效果
-        shadow_effect = QGraphicsDropShadowEffect()
-        shadow_effect.setBlurRadius(15)
-        shadow_effect.setColor(QColor(0, 0, 0, 180))
-        shadow_effect.setXOffset(5)
-        shadow_effect.setYOffset(5)
+        # 创建并应用背景
+        self.setStyleSheet("background-color: #F5DEB3;")
 
-        # 设置布局
+        # 创建布局
         layout = QVBoxLayout()
 
-        # 设置并添加版本标签
+        # 创建并设置版本标签
         version_label = QLabel('Version 1.2')
         version_label.setFont(QFont('Arial', 20, QFont.Bold))
-        version_label.setStyleSheet("color: #DDDDDD; margin-bottom: 20px;")
+        version_label.setStyleSheet("color: #FFFFFF; margin-bottom: 20px;")
         version_label.setAlignment(Qt.AlignCenter)
-        version_label.setGraphicsEffect(shadow_effect)
         layout.addWidget(version_label)
 
-        # 设置并添加GitHub标签
-        github_label = QLabel('GitHub: https://example.com')
+        # 创建并设置GitHub标签
+        github_label = QLabel('<a href="https://github.com/Albertdeng23/Material_tools_GUI-main">GitHub: https://github.com/Albertdeng23/Material_tools_GUI-main</a>')
         github_label.setFont(QFont('Arial', 16))
-        github_label.setStyleSheet("background-color: #FFFFFF; color: #333333; padding: 12px; border-radius: 10px; border: 1px solid #007ACC;")
+        github_label.setStyleSheet("color: #FFFFFF;")
+
+        # 设置标签的背景颜色为透明，覆盖默认的背景颜色
+        github_label.setAutoFillBackground(True)
+        p = github_label.palette()
+        p.setColor(github_label.backgroundRole(), Qt.transparent)
+        github_label.setPalette(p)
+
+        github_label.setOpenExternalLinks(True)  # 设置标签可以打开外部链接
         github_label.setAlignment(Qt.AlignCenter)
         layout.addWidget(github_label)
 
-        # 设置并添加Release标签
-        release_label = QLabel('Release: https://example.com/release')
+        # 创建并设置Release标签
+        release_label = QLabel('<a href="https://github.com/Albertdeng23/Material_tools_GUI-main/releases">Release: https://github.com/Albertdeng23/Material_tools_GUI-main/releases</a>')
         release_label.setFont(QFont('Arial', 16))
-        release_label.setStyleSheet("background-color: #FFFFFF; color: #333333; padding: 12px; border-radius: 10px; border: 1px solid #007ACC;")
+        release_label.setStyleSheet("color: #FFFFFF; margin-top: 10px;")
+
+        # 设置标签的背景颜色为透明，覆盖默认的背景颜色
+        release_label.setAutoFillBackground(True)
+        p = release_label.palette()
+        p.setColor(release_label.backgroundRole(), Qt.transparent)
+        release_label.setPalette(p)
+
+        release_label.setOpenExternalLinks(True)  # 设置标签可以打开外部链接
         release_label.setAlignment(Qt.AlignCenter)
         layout.addWidget(release_label)
 
@@ -250,8 +258,34 @@ class MyApp(QWidget):
         self.setLayout(layout)
 
 ## about author类
+class AboutAuthorDialog(QDialog):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle('About Author')
+        self.setModal(True)
 
+        self.author_label = QLabel('Author: Albertdeng23')
+        self.author_label.setFont(QFont('Arial', 14, QFont.Bold))
+        self.author_label.setAlignment(Qt.AlignCenter)
 
+        self.email_label = QLabel('Email: issicdeng@outlook.com')
+        self.email_label.setFont(QFont('Arial', 12))
+        self.email_label.setAlignment(Qt.AlignCenter)
+
+        self.github_label = QLabel('<a href="https://github.com/Albertdeng23">GitHub: https://github.com/Albertdeng23</a>')
+        self.github_label.setFont(QFont('Arial', 12))
+        self.github_label.setAlignment(Qt.AlignCenter)
+        self.github_label.setOpenExternalLinks(True)
+
+        button_box = QDialogButtonBox(QDialogButtonBox.Ok)
+        button_box.accepted.connect(self.accept)
+
+        layout = QVBoxLayout()
+        layout.addWidget(self.author_label)
+        layout.addWidget(self.email_label)
+        layout.addWidget(self.github_label)
+        layout.addWidget(button_box)
+        self.setLayout(layout)
 
 ### 创建MainWindow
 class ASE_ui(Ui_AseAtomInput,QMainWindow): 
@@ -259,6 +293,7 @@ class ASE_ui(Ui_AseAtomInput,QMainWindow):
         super().__init__()
         self.atom_calculator = AtomCalculator()
         self.myAppInstance = MyApp()
+        self.about_author_dialog = AboutAuthorDialog(self)
         self.initUI()
 
     def initUI(self):
@@ -273,6 +308,11 @@ class ASE_ui(Ui_AseAtomInput,QMainWindow):
         self.actionServer.triggered.connect(self.connectRemoteServer)
         self.Process_Button.clicked.connect(self.startCalculation)
         self.actionVision.triggered.connect(self.versionButton)
+        self.actionAbout_Author.triggered.connect(self.showAboutAuthorDialog)
+
+
+    def showAboutAuthorDialog(self):
+        self.about_author_dialog.exec_()
 
     
     def addAtom(self):
@@ -351,19 +391,21 @@ class ASE_ui(Ui_AseAtomInput,QMainWindow):
         if dialog.exec_() == QDialog.Accepted:
             server_info = dialog.getServerInfo()
             if server_info is not None:
-                hostname = server_info['hostname']
-                username = server_info['username']
-                password = server_info['password']
+                self.hostname = server_info['hostname']
+                self.username = server_info['username']
+                self.password = server_info['password']
+                self.file_path = server_info['folder']
 
 
                 try:
-                    ssh = paramiko.SSHClient()
-                    ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-                    ssh.connect(hostname, username=username, password=password)
-
-                    use_times = self.atom_calculator.run_vasp_calculation(ssh)
+                    self.ssh = paramiko.SSHClient()
+                    self.ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+                    self.ssh.connect(self.hostname, username=self.username, password=self.password)
+                    use_times = self.atom_calculator.run_vasp_calculation(ssh , file_path)
 
                     QMessageBox.information(self, f'successful', f'successfully connect to {hostname} \n Result file path : .\\Results \n Use Time: {use_times /60 : .2f} minute. ')
+
+
 
                 except paramiko.AuthenticationException:
                     QMessageBox.information(self, f'Authentication Error','please check you account and password')
@@ -377,18 +419,24 @@ class ASE_ui(Ui_AseAtomInput,QMainWindow):
 class RemoteServerDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setWindowTitle('connect Remote Server')
+        self.setWindowTitle('Connect Remote Server')
         self.setModal(True)
         self.server_info = None
 
-        self.hostname_label = QLabel('hosthame:')
-        self.username_label = QLabel('acount:')
-        self.password_label = QLabel('passwd:')
+        self.hostname_label = QLabel('Hostname:')
+        self.username_label = QLabel('Account:')
+        self.password_label = QLabel('Password:')
 
         self.hostname_input = QLineEdit()
         self.username_input = QLineEdit()
         self.password_input = QLineEdit()
         self.password_input.setEchoMode(QLineEdit.Password)
+
+        self.folder_button = QPushButton('Select Folder')
+        self.folder_button.clicked.connect(self.selectFolder)
+
+        # 创建新的文本框用于显示选择的路径
+        self.selected_folder_input = QLineEdit()
 
         button_box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
         button_box.accepted.connect(self.accept)
@@ -401,14 +449,27 @@ class RemoteServerDialog(QDialog):
         layout.addWidget(self.username_input)
         layout.addWidget(self.password_label)
         layout.addWidget(self.password_input)
+        layout.addWidget(self.folder_button)
+        # 添加新的文本框到UI中
+        layout.addWidget(self.selected_folder_input)
         layout.addWidget(button_box)
         self.setLayout(layout)
+
+        self.folder_path = None  # 添加folder_path属性
+
+    def selectFolder(self):
+        folder = QFileDialog.getExistingDirectory(self, 'Select VASP File', '/')
+        if folder:
+            self.folder_path = folder
+            # 将选择的路径显示在新的文本框中
+            self.selected_folder_input.setText(folder)
 
     def getServerInfo(self):
         self.server_info = {
             'hostname': self.hostname_input.text(),
             'username': self.username_input.text(),
             'password': self.password_input.text(),
+            'folder': self.folder_path,
         }
         return self.server_info
 
@@ -535,6 +596,7 @@ class VASPOutputWidget(QWidget):
         self.text_area.moveCursor(QtGui.QTextCursor.End)  # move cursor to end
         self.text_area.insertPlainText(text)
         self.text_area.moveCursor(QtGui.QTextCursor.End)
+
 ### VASP 设置参数类
 class VaspParamDialog(QDialog):
     def __init__(self, parent=None):
@@ -636,7 +698,7 @@ class AtomCalculator:
             self.forces = None
 
     @timer
-    def run_vasp_calculation(self, ssh):
+    def run_vasp_calculation(self, ssh , file_path):
         try:
             # Initialize SSH client
             
@@ -649,9 +711,10 @@ class AtomCalculator:
             # Transfer files to the remote server
             sftp = ssh.open_sftp()
             local_files = ['INCAR', 'POSCAR', 'POTCAR', 'KPOINTS']
+            local_files_with_path = [os.path.join(file_path, file) for file in local_files]  # 添加文件夹路径
             remote_path = 'VASP_calculation/'
-            for file in local_files:
-                sftp.put(file, os.path.join(remote_path, file))
+            for file in local_files_with_path:
+                sftp.put(file, os.path.join(remote_path, os.path.basename(file)))
             sftp.close()
 
             # Execute VASP calculation
