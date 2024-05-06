@@ -1,8 +1,9 @@
 import paramiko
 import sys
-# from Visualizer.demo import Ui_AseAtomInput
+import os
+import time
+import threading
 from PyQt5.QtWidgets import *
-from PyQt5 import *
 from ase.visualize import view
 from ase import Atoms
 from ase.calculators.emt import EMT
@@ -11,8 +12,7 @@ from ase.io import read
 from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtGui import *
 from PyQt5.QtCore import *
-import os
-import time
+
 
 
 ### TODO 
@@ -32,8 +32,6 @@ def timer(func):
 
 
 ###----------------------------------------------------------------------------------------------------------####
-
-
 
 ### mainUI类
 class Ui_AseAtomInput(object):
@@ -287,6 +285,28 @@ class AboutAuthorDialog(QDialog):
         layout.addWidget(button_box)
         self.setLayout(layout)
 
+### 文件传输进度条
+class ProgressUpdater(QObject):
+    progress_signal = pyqtSignal(int)
+
+    def __init__(self, total_files):
+        super().__init__()
+        self.total_files = total_files
+
+    def update_progress(self):
+        for index in range(1, self.total_files + 1):
+            self.progress_signal.emit(index)
+            time.sleep(0.01)  # 模拟传输延迟
+
+class ThreadedProgressUpdater(QRunnable):
+    def __init__(self, progress_updater):
+        super().__init__()
+        self.progress_updater = progress_updater
+
+    def run(self):
+        self.progress_updater.update_progress()
+
+
 ### 创建MainWindow
 class ASE_ui(Ui_AseAtomInput,QMainWindow): 
     def __init__(self,) -> None:
@@ -401,8 +421,8 @@ class ASE_ui(Ui_AseAtomInput,QMainWindow):
                     self.ssh = paramiko.SSHClient()
                     self.ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
                     self.ssh.connect(self.hostname, username=self.username, password=self.password)
-                    use_times = self.atom_calculator.run_vasp_calculation(self.ssh , self.file_path)
 
+                    use_times = self.atom_calculator.run_vasp_calculation(self.ssh , self.file_path)
                     QMessageBox.information(self, f'successful', f'successfully connect to {self.hostname} \n Result file path : .\\Results \n Use Time: {use_times /60 : .2f} minute. ')
 
 
@@ -694,12 +714,18 @@ class AtomCalculator:
             self.forces = None
 
     @timer
-    def run_vasp_calculation(self, ssh , file_path):
+    def run_vasp_calculation(self, ssh, file_path):
         try:
             # Initialize SSH client
-            
+
             # Create a folder for VASP calculation
+            print("Creat Work Folder")
             _, stdout, _ = ssh.exec_command('mkdir -p VASP_calculation')
+
+            # Confirm folder creation
+            stdout.channel.recv_exit_status()
+
+            _, stdout, _ = ssh.exec_command('rm -rf ./VASP_calculation/*')
 
             # Confirm folder creation
             stdout.channel.recv_exit_status()
@@ -709,19 +735,44 @@ class AtomCalculator:
             local_files = ['INCAR', 'POSCAR', 'POTCAR', 'KPOINTS']
             local_files_with_path = [os.path.join(file_path, file) for file in local_files]  # 添加文件夹路径
             remote_path = 'VASP_calculation/'
-            for file in local_files_with_path:
+
+            # 获取总共需要传输的文件数量
+            total_files = len(local_files_with_path)
+
+            # 创建进度对话框
+            progress_dialog = QProgressDialog("Transferring Files...", "Cancel", 0, total_files)
+            progress_dialog.setWindowTitle("File Transfer")
+            progress_dialog.setWindowModality(Qt.WindowModal)
+            progress_dialog.setAutoReset(False)
+            progress_dialog.setAutoClose(False)
+
+            # 创建并启动进度更新器
+            progress_updater = ProgressUpdater(total_files)
+            progress_updater.progress_signal.connect(progress_dialog.setValue)
+            progress_updater_thread = QThread()
+            progress_updater.moveToThread(progress_updater_thread)
+            progress_updater_thread.started.connect(progress_updater.update_progress)
+            progress_updater_thread.start()
+
+            # 运行文件传输
+            for index, file in enumerate(local_files_with_path):
                 sftp.put(file, os.path.join(remote_path, os.path.basename(file)))
+
+            # 等待进度更新器完成工作
+            progress_updater_thread.quit()
+            progress_updater_thread.wait()
+            progress_dialog.close()
             sftp.close()
 
             # Execute VASP calculation
             transport = ssh.get_transport()
             channel = transport.open_session()
             channel.exec_command(f'cd {remote_path} && vasp_std')
-            
+
             widget = VASPOutputWidget()
             thread = SSHReader(channel)
             thread.output_signal.connect(widget.append_text)
-            
+
             thread.start()
             widget.show()
 
@@ -734,10 +785,25 @@ class AtomCalculator:
             os.makedirs(local_result_folder, exist_ok=True)
             sftp = ssh.open_sftp()
             remote_files = sftp.listdir(remote_path)
-            for file in remote_files:
-                remote_file_path = os.path.join(remote_path, file)
+
+            # 重置进度对话框，用于显示下载结果的进度
+            progress_dialog.reset()
+            progress_dialog.setLabelText("Downloading Results...")
+
+            # 获取总共需要下载的文件数量
+            total_files = len(remote_files)
+
+            for index, file in enumerate(remote_files):
                 local_file_path = os.path.join(local_result_folder, file)
+                remote_file_path = os.path.join(remote_path, file)
                 sftp.get(remote_file_path, local_file_path)
+
+                # 更新进度条
+                progress_dialog.setValue(index + 1)
+                if progress_dialog.wasCanceled():
+                    break
+
+            progress_dialog.close()
             sftp.close()
 
             print("VASP calculation completed successfully.")
