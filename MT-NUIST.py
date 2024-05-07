@@ -2,7 +2,8 @@ import paramiko
 import sys
 import os
 import time
-import threading
+import numpy as np
+import matplotlib.pyplot as plt
 from PyQt5.QtWidgets import *
 from ase.visualize import view
 from ase import Atoms
@@ -31,6 +32,46 @@ def timer(func):
     return wrapper
 
 
+### 绘制能带图
+def plot_band_structure(eigenval_file):
+    # 读取EIGENVAL文件
+    with open(eigenval_file, 'r') as f:
+        data = f.readlines()
+
+    # 获取能带和能级数据
+    efermi = float(data[5].split()[0])  # 费米能级
+    nkpoints = int(data[5].split()[1])  # k点数量
+    nbands = int(data[5].split()[2])  # 能带数量
+
+    eigenval_raw = np.zeros((nkpoints, nbands))
+    for i in range(nkpoints):
+        line = data[8 + i].split()
+        eigenval_raw[i] = [float(e) - efermi for e in line[1:nbands+1]]
+
+    # 绘制能带图
+    kpoints = np.linspace(0, 1, nkpoints)
+
+    for band in range(nbands):
+        plt.plot(kpoints, eigenval_raw[:, band], color='b')
+
+    # 设置坐标轴和标签
+    plt.axhline(y=0, color='k', ls='--')
+    plt.xlabel('k-points')
+    plt.ylabel('Energy (eV)')
+
+    # 显示能级线
+    for i in range(nkpoints):
+        if kpoints[i] % 0.25 == 0:
+            plt.axvline(x=kpoints[i], color='k', ls='--')
+
+    # 显示费米能级
+    plt.axhline(y=0, color='r', linewidth=0.5, ls='-')
+
+    # 添加标题
+    plt.title('Band Structure')
+
+    # 显示图像
+    plt.show()
 ###----------------------------------------------------------------------------------------------------------####
 
 ### mainUI类
@@ -329,12 +370,8 @@ class ASE_ui(Ui_AseAtomInput,QMainWindow):
         self.Process_Button.clicked.connect(self.startCalculation)
         self.actionVision.triggered.connect(self.versionButton)
         self.actionAbout_Author.triggered.connect(self.showAboutAuthorDialog)
-
-
     def showAboutAuthorDialog(self):
         self.about_author_dialog.exec_()
-
-    
     def addAtom(self):
         element = self.AtomInPut.text()
         x = float(self.X_Input.text())
@@ -493,7 +530,7 @@ class RemoteServerDialog(QDialog):
         }
         return self.server_info
 
-### 从CIF文件导入类
+### 从CIF文件导入UI类
 class CIFImportDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -613,7 +650,7 @@ class VASPOutputWidget(QWidget):
         self.text_area.insertPlainText(text)
         self.text_area.moveCursor(QtGui.QTextCursor.End)
 
-### VASP 设置参数类
+### VASP 设置参数UI类
 class VaspParamDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -814,6 +851,7 @@ class AtomCalculator:
 
 
 if __name__ == '__main__':
+    plot_band_structure('.\\Results\\EIGENVAL')
     app = QApplication(sys.argv)
     window = ASE_ui()
     window.show()
