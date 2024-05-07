@@ -4,6 +4,10 @@ import os
 import time
 import numpy as np
 import matplotlib.pyplot as plt
+from matplotlib.backends.backend_qt5agg import  FigureCanvasQTAgg as FigureCanvas
+from matplotlib.figure import Figure
+from matplotlib.ticker import NullFormatter
+from functools import partial
 from PyQt5.QtWidgets import *
 from ase.visualize import view
 from ase import Atoms
@@ -33,46 +37,118 @@ def timer(func):
 
 
 ### 绘制能带图
-def plot_band_structure(eigenval_file):
+def plot_band_structure(eigenval_file, figure):
     # 读取EIGENVAL文件
     with open(eigenval_file, 'r') as f:
         data = f.readlines()
 
     # 获取能带和能级数据
     efermi = float(data[5].split()[0])  # 费米能级
-    nkpoints = int(data[5].split()[1])  # k点数量
-    nbands = int(data[5].split()[2])  # 能带数量
-
-    eigenval_raw = np.zeros((nkpoints, nbands))
-    for i in range(nkpoints):
-        line = data[8 + i].split()
-        eigenval_raw[i] = [float(e) - efermi for e in line[1:nbands+1]]
+    eigenval_raw = np.loadtxt(eigenval_file, skiprows=8, usecols=(1,)) - efermi
 
     # 绘制能带图
+    nkpoints = len(eigenval_raw)
     kpoints = np.linspace(0, 1, nkpoints)
 
-    for band in range(nbands):
-        plt.plot(kpoints, eigenval_raw[:, band], color='b')
+    ax = figure.add_subplot(111)
+    ax.plot(kpoints, eigenval_raw, color='b')
 
     # 设置坐标轴和标签
-    plt.axhline(y=0, color='k', ls='--')
-    plt.xlabel('k-points')
-    plt.ylabel('Energy (eV)')
+    ax.axhline(y=0, color='k', ls='--')
+    ax.set_xlabel('k-points')
+    ax.set_ylabel('Energy (eV)')
 
     # 显示能级线
-    for i in range(nkpoints):
+    for i in range(1, nkpoints - 1):
         if kpoints[i] % 0.25 == 0:
-            plt.axvline(x=kpoints[i], color='k', ls='--')
+            ax.axvline(x=kpoints[i], color='k', ls='--')
 
     # 显示费米能级
-    plt.axhline(y=0, color='r', linewidth=0.5, ls='-')
+    ax.axhline(y=0, color='r', linewidth=0.5, ls='-')
 
     # 添加标题
-    plt.title('Band Structure')
-
-    # 显示图像
-    plt.show()
+    ax.set_title('Band Structure')
 ###----------------------------------------------------------------------------------------------------------####
+
+### 绘制能带图类
+class Band_Structure(QMainWindow):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("能带图绘制")
+        self.setGeometry(100, 100, 800, 600)
+
+        self.figure = Figure()
+        self.canvas = FigureCanvas(self.figure)
+        self.create_main_layout()
+
+    def create_main_layout(self):
+        main_widget = QWidget(self)
+        self.setCentralWidget(main_widget)
+        main_layout = QVBoxLayout(main_widget)
+
+        scroll_area = QScrollArea()
+        scroll_area.setWidgetResizable(True)
+        main_layout.addWidget(scroll_area)
+
+        scroll_widget = QWidget()
+        scroll_widget.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
+        scroll_area.setWidget(scroll_widget)
+
+        self.image_label = QLabel(scroll_widget)
+        self.image_label.setAlignment(Qt.AlignCenter)
+        self.image_label.setMinimumSize(400, 300)  # 设置图片显示的初始大小
+        self.image_label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+
+        main_layout = QVBoxLayout(scroll_widget)
+        main_layout.addWidget(self.image_label)
+        
+        button_layout = QHBoxLayout()
+        main_layout.addLayout(button_layout)
+
+        self.file_button = QPushButton('选择文件', self)
+        self.file_button.clicked.connect(partial(self.select_file, "EIGENVAL"))
+        button_layout.addWidget(self.file_button)
+
+        self.plot_button = QPushButton('开始绘制', self)
+        self.plot_button.clicked.connect(self.plot_band_structure)
+        button_layout.addWidget(self.plot_button)
+
+        self.save_button = QPushButton('保存图片', self)
+        self.save_button.clicked.connect(self.save_figure)
+        button_layout.addWidget(self.save_button)
+
+        self.label = QLabel(self)
+        main_layout.addWidget(self.label)
+
+    def select_file(self, file_type):
+        file_dialog = QFileDialog()
+        file_path, _ = file_dialog.getOpenFileName(self, '选择文件')
+        if file_path:
+            setattr(self, file_type, file_path)
+            self.label.setText(f"{file_type}文件已选择：{file_path}")
+
+    def plot_band_structure(self):
+        if not hasattr(self, 'EIGENVAL'):
+            self.label.setText("请先选择EIGENVAL文件！")
+            return
+            
+        eigenval_file = self.EIGENVAL
+        plot_band_structure(eigenval_file, self.figure)
+        self.update_image_label()
+
+    def update_image_label(self):
+        self.canvas.draw()
+        w, h = self.canvas.get_width_height()
+        image = QImage(self.canvas.buffer_rgba(), w, h, QImage.Format_RGBA8888)
+        self.image_label.setPixmap(QPixmap.fromImage(image))
+
+    def save_figure(self):
+        save_dialog = QFileDialog()
+        save_path, _ = save_dialog.getSaveFileName(self, '保存图片', '', 'PNG (*.png);;JPEG (*.jpg *.jpeg)')
+        if save_path:
+            self.figure.savefig(save_path)
+            self.label.setText(f"图片已保存：{save_path}")
+
 
 ### mainUI类
 class Ui_AseAtomInput(object):
@@ -338,7 +414,6 @@ class ProgressUpdater(QObject):
         for index in range(1, self.total_files + 1):
             self.progress_signal.emit(index)
             time.sleep(0.01)  # 模拟传输延迟
-
 class ThreadedProgressUpdater(QRunnable):
     def __init__(self, progress_updater):
         super().__init__()
@@ -346,7 +421,6 @@ class ThreadedProgressUpdater(QRunnable):
 
     def run(self):
         self.progress_updater.update_progress()
-
 
 ### 创建MainWindow
 class ASE_ui(Ui_AseAtomInput,QMainWindow): 
@@ -851,7 +925,7 @@ class AtomCalculator:
 
 
 if __name__ == '__main__':
-    plot_band_structure('.\\Results\\EIGENVAL')
+
     app = QApplication(sys.argv)
     window = ASE_ui()
     window.show()
