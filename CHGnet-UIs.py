@@ -6,6 +6,7 @@ from pymatgen.core import Structure
 import traceback
 from chgnet.model.model import CHGNet
 from chgnet.model.dynamics import MolecularDynamics
+from chgnet.model import StructOptimizer
 from pymatgen.core import Structure
 import warnings
 from PyQt5.QtCore import QThread, pyqtSignal
@@ -113,7 +114,36 @@ class WindowSetMolecularDynamics(QDialog):
             "device": self.device_combo.currentText()
         }
 
+### Structure Optimization
+class StructureOptimizationThread(QThread):
+    result_signal = pyqtSignal(object, float)
 
+    def __init__(self, cif_path):
+        QThread.__init__(self)
+        self.cif_path = cif_path
+
+    def run(self):
+        start_time = time.time()
+        structure = Structure.from_file(self.cif_path)
+        relaxer = StructOptimizer()
+        result = relaxer.relax(structure)
+        end_time = time.time()
+        self.result_signal.emit(result, end_time - start_time)
+class windowStructureOptimization(QWidget):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("Structure Optimization Results")
+        self.layout = QVBoxLayout(self)
+        self.result_text = QTextEdit(self)
+        self.result_text.setReadOnly(True)
+        self.layout.addWidget(self.result_text)
+
+    def displayResult(self, result, elapsed_time):
+        self.result_text.setText(
+            f"Calculation Time: {elapsed_time:.2f} seconds\n\n"
+            f"CHGNet relaxed structure:\n{result['final_structure']}\n\n"
+            f"relaxed total energy in eV: {result['trajectory'].energies[-1]}"
+        )
 
 # 主窗口
 class CHGnetApp(QMainWindow):
@@ -180,8 +210,7 @@ class CHGnetApp(QMainWindow):
                 self.performMolecularDynamics(loaded_file, md_params)
 
         elif prediction_type == 'Structure Optimization':
-            # 将来实现结构优化功能
-            pass
+           self.performStructureOptimization( loaded_file)
         else:
             QMessageBox.information(self, 'Invalid Operation', 'Please select a valid operation to perform.')
 
@@ -229,7 +258,13 @@ class CHGnetApp(QMainWindow):
         except Exception as e:
             QMessageBox.critical(self, 'Simulation Error', 'An error occurred during the simulation:\n' + str(e) + '\n\n' + traceback.format_exc())
             self.result_text.setText('')
+    def performStructureOptimization(self, cif_path):
+        self.structure_optimization_window = windowStructureOptimization()
+        self.structure_optimization_window.show()
 
+        self.thread = StructureOptimizationThread(cif_path)
+        self.thread.result_signal.connect(self.structure_optimization_window.displayResult)
+        self.thread.start()
 
     
 window = CHGnetApp()
