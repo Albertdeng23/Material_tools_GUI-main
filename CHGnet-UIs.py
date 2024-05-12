@@ -8,9 +8,50 @@ from chgnet.model.model import CHGNet
 from chgnet.model.dynamics import MolecularDynamics
 from pymatgen.core import Structure
 import warnings
-
+from PyQt5.QtCore import QThread, pyqtSignal
+import time
 # 启动PyQt应用
 app = QApplication(sys.argv)
+
+# AI推断
+# 用于执行Direct Inference的线程
+class DirectInferenceThread(QThread):
+    result_signal = pyqtSignal(dict, float)
+
+    def __init__(self, cif_path):
+        QThread.__init__(self)
+        self.cif_path = cif_path
+
+    def run(self):
+        start_time = time.time()
+        chgnet = CHGNet.load()
+        structure = Structure.from_file(self.cif_path)
+        prediction = chgnet.predict_structure(structure)
+        end_time = time.time()
+        elapsed_time = end_time - start_time
+        self.result_signal.emit(prediction, elapsed_time)
+# 直接推断结果的窗口
+class windowDirectInference(QWidget):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("Direct Inference Results")
+        self.layout = QVBoxLayout(self)
+        
+        # 使用QTextEdit展示结果
+        self.result_text = QTextEdit(self)
+        self.result_text.setReadOnly(True)
+        self.layout.addWidget(self.result_text)
+
+    def displayResult(self, prediction, elapsed_time):
+        result_str = f"Calculation Time: {elapsed_time:.2f} seconds\n\n"
+        for key, unit in [
+            ("energy", "eV/atom"),
+            ("forces", "eV/A"),
+            ("stress", "GPa"),
+            ("magmom", "mu_B"),
+        ]:
+            result_str += f"CHGNet-predicted {key} ({unit}):\n{prediction[key[0]]}\n\n"
+        self.result_text.setText(result_str)
 
 # 分子动力学参数设置窗口
 class WindowSetMolecularDynamics(QDialog):
@@ -131,16 +172,29 @@ class CHGnetApp(QMainWindow):
         prediction_type = self.prediction_type_combo.currentText()
         if prediction_type == 'Direct Inference':
             self.performDirectInference(loaded_file)
+
         elif prediction_type == 'Molecular Dynamics':
             md_params_dialog = WindowSetMolecularDynamics(self)
             if md_params_dialog.exec_():
                 md_params = md_params_dialog.getParameters()
                 self.performMolecularDynamics(loaded_file, md_params)
+
         elif prediction_type == 'Structure Optimization':
             # 将来实现结构优化功能
             pass
         else:
             QMessageBox.information(self, 'Invalid Operation', 'Please select a valid operation to perform.')
+
+    ## 直接推理
+    def performDirectInference(self, cif_path):
+        # 创建一个新窗口
+        self.direct_inference_window = windowDirectInference()
+        self.direct_inference_window.show()
+
+        # 启动线程进行计算
+        self.thread = DirectInferenceThread(cif_path)
+        self.thread.result_signal.connect(self.direct_inference_window.displayResult)
+        self.thread.start()
 
     ### 分子动力学模拟
     def performMolecularDynamics(self, file_path, parameters):
@@ -176,30 +230,8 @@ class CHGnetApp(QMainWindow):
             QMessageBox.critical(self, 'Simulation Error', 'An error occurred during the simulation:\n' + str(e) + '\n\n' + traceback.format_exc())
             self.result_text.setText('')
 
-    ## 直接推理
-    def performDirectInference(self, file_path):
-        try:
-            # 加载预训练的CHGNet模型
-            chgnet = CHGNet.load()
-            # 从CIF文件创建结构
-            structure = Structure.from_file(file_path)
-            # 进行预测
-            prediction = chgnet.predict_structure(structure)
-            
-            # 显示结果
-            result = ''
-            for key, unit in [
-                ("energy", "eV/atom"),
-                ("forces", "eV/A"),
-                ("stress", "GPa"),
-                ("magmom", "mu_B"),
-            ]:
-                result += f"CHGNet-predicted {key} ({unit}):\n{prediction[key]}\n\n"
-            self.result_text.setText(result)
-        except Exception as e:
-            QMessageBox.critical(self, 'Prediction Error', 'An error occurred during the prediction:\n' + str(e) + '\n\n' + traceback.format_exc())
-            self.result_text.setText('')
 
+    
 window = CHGnetApp()
 window.show()
 sys.exit(app.exec_())
