@@ -3,10 +3,8 @@ import sys
 import os
 import time
 import numpy as np
-import matplotlib.pyplot as plt
 from matplotlib.backends.backend_qt5agg import  FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
-from matplotlib.ticker import NullFormatter
 from functools import partial
 from PyQt5.QtWidgets import *
 from ase.visualize import view
@@ -18,6 +16,8 @@ from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtGui import *
 from PyQt5.QtCore import *
 
+from CIFDownload import CIFDownloader
+from DescriptorDesign import FileSelectionWidget
 
 
 ### TODO 
@@ -75,50 +75,83 @@ class Band_Structure(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("能带图绘制")
-        self.setGeometry(100, 100, 800, 600)
+        self.setGeometry(100, 100, 400, 300)
 
         self.figure = Figure()
         self.canvas = FigureCanvas(self.figure)
         self.create_main_layout()
 
     def create_main_layout(self):
+    # Apply main style to the main widget
+        self.setStyleSheet("""
+            QWidget {
+                font-size: 14px;
+            }
+            QPushButton {
+                background-color: #5AA469;
+                color: white;
+                border-style: outset;
+                border-width: 2px;
+                border-radius: 10px;
+                border-color: beige;
+                font: bold 14px;
+                padding: 6px;
+                margin: 6px;
+            }
+            QPushButton:hover {
+                background-color: #66c280;
+            }
+            QLabel {
+                min-height: 3em;
+                align: center;
+                font: 14px;
+            }
+            QScrollArea {
+                border: 0;
+            }
+        """)
+
         main_widget = QWidget(self)
         self.setCentralWidget(main_widget)
         main_layout = QVBoxLayout(main_widget)
+        main_layout.setContentsMargins(20, 20, 20, 20)
+        main_layout.setSpacing(10)
 
         scroll_area = QScrollArea()
         scroll_area.setWidgetResizable(True)
+        scroll_area.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         main_layout.addWidget(scroll_area)
 
         scroll_widget = QWidget()
-        scroll_widget.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
         scroll_area.setWidget(scroll_widget)
 
-        self.image_label = QLabel(scroll_widget)
+        # Add the QVBoxLayout to the scrollable widget
+        scroll_layout = QVBoxLayout(scroll_widget)
+        self.image_label = QLabel()
         self.image_label.setAlignment(Qt.AlignCenter)
-        self.image_label.setMinimumSize(400, 300)  # 设置图片显示的初始大小
-        self.image_label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        self.image_label.setMinimumSize(400, 300)  # Minimum size for image display
+        scroll_layout.addWidget(self.image_label)
 
-        main_layout = QVBoxLayout(scroll_widget)
-        main_layout.addWidget(self.image_label)
-        
+        # Layout for buttons
         button_layout = QHBoxLayout()
-        main_layout.addLayout(button_layout)
+        scroll_layout.addLayout(button_layout)
 
-        self.file_button = QPushButton('选择文件', self)
+        self.file_button = QPushButton('选择文件')
         self.file_button.clicked.connect(partial(self.select_file, "EIGENVAL"))
         button_layout.addWidget(self.file_button)
 
-        self.plot_button = QPushButton('开始绘制', self)
+        self.plot_button = QPushButton('开始绘制')
         self.plot_button.clicked.connect(self.plot_band_structure)
         button_layout.addWidget(self.plot_button)
 
-        self.save_button = QPushButton('保存图片', self)
+        self.save_button = QPushButton('保存图片')
         self.save_button.clicked.connect(self.save_figure)
         button_layout.addWidget(self.save_button)
 
-        self.label = QLabel(self)
-        main_layout.addWidget(self.label)
+        # Label for showing messages or information
+        self.label = QLabel()
+        self.label.setAlignment(Qt.AlignCenter)
+        scroll_layout.addWidget(self.label)
 
     def select_file(self, file_type):
         file_dialog = QFileDialog()
@@ -154,7 +187,62 @@ class Band_Structure(QMainWindow):
 class Ui_AseAtomInput(object):
     def setupUi(self, AseAtomInput):
         AseAtomInput.setObjectName("AseAtomInput")
-        AseAtomInput.resize(686, 424)
+        AseAtomInput.resize(686, 418)
+        styleSheet = """
+            QWidget {
+                font-size: 14px;
+            }
+            QPushButton {
+                background-color: #5AA469;
+                color: white;
+                border-style: outset;
+                border-width: 2px;
+                border-radius: 10px;
+                border-color: beige;
+                font: bold 14px;
+                padding: 6px;
+                margin: 1px;
+            }
+            QPushButton:hover {
+                background-color: #66c280;
+            }
+            QLineEdit {
+                font: 14px Arial;
+                border: 1px solid #ccc;
+                padding: 3px;
+                margin: 4px;
+            }
+            QLabel {
+                font: bold italic;
+                color: #555;
+            }
+            QGraphicsView {
+                border-style: outset;
+                border-width: 2px;
+                border-radius: 5px;
+                border-color: #ccc;
+            }
+            QMenuBar {
+                background-color: #5AA469;
+                color: white;
+            }
+            QMenuBar::item {
+                background-color: #5AA469;
+                color: white;
+            }
+            QMenuBar::item::selected {
+                background-color: #66c280;
+            }
+            QMenu {
+                background-color: white;
+                color: #5AA469;
+            }
+            QMenu::item::selected {
+                background-color: #66c280;
+                color: white;
+            }
+        """
+        AseAtomInput.setStyleSheet(styleSheet)
         self.centralwidget = QtWidgets.QWidget(AseAtomInput)
         self.centralwidget.setObjectName("centralwidget")
         self.graphicsView = QtWidgets.QGraphicsView(self.centralwidget)
@@ -261,7 +349,7 @@ class Ui_AseAtomInput(object):
         self.verticalLayout.addWidget(self.Caluator_Input)
         AseAtomInput.setCentralWidget(self.centralwidget)
         self.menubar = QtWidgets.QMenuBar(AseAtomInput)
-        self.menubar.setGeometry(QtCore.QRect(0, 0, 686, 26))
+        self.menubar.setGeometry(QtCore.QRect(0, 0, 686, 22))
         self.menubar.setObjectName("menubar")
         self.menu = QtWidgets.QMenu(self.menubar)
         self.menu.setObjectName("menu")
@@ -271,6 +359,8 @@ class Ui_AseAtomInput(object):
         self.menuAbout.setObjectName("menuAbout")
         self.menuPlot = QtWidgets.QMenu(self.menubar)
         self.menuPlot.setObjectName("menuPlot")
+        self.menuMaterials_Project = QtWidgets.QMenu(self.menubar)
+        self.menuMaterials_Project.setObjectName("menuMaterials_Project")
         AseAtomInput.setMenuBar(self.menubar)
         self.statusbar = QtWidgets.QStatusBar(AseAtomInput)
         self.statusbar.setObjectName("statusbar")
@@ -285,15 +375,22 @@ class Ui_AseAtomInput(object):
         self.actionAbout_Author.setObjectName("actionAbout_Author")
         self.actionBand_Structure = QtWidgets.QAction(AseAtomInput)
         self.actionBand_Structure.setObjectName("actionBand_Structure")
+        self.actionCIF_Download = QtWidgets.QAction(AseAtomInput)
+        self.actionCIF_Download.setObjectName("actionCIF_Download")
+        self.actionDescriptor_Design = QtWidgets.QAction(AseAtomInput)
+        self.actionDescriptor_Design.setObjectName("actionDescriptor_Design")
         self.menu.addAction(self.actionFrom)
         self.menuConnect_Server.addAction(self.actionServer)
         self.menuAbout.addAction(self.actionVision)
         self.menuAbout.addAction(self.actionAbout_Author)
         self.menuPlot.addAction(self.actionBand_Structure)
+        self.menuMaterials_Project.addAction(self.actionCIF_Download)
+        self.menuMaterials_Project.addAction(self.actionDescriptor_Design)
         self.menubar.addAction(self.menu.menuAction())
         self.menubar.addAction(self.menuConnect_Server.menuAction())
         self.menubar.addAction(self.menuAbout.menuAction())
         self.menubar.addAction(self.menuPlot.menuAction())
+        self.menubar.addAction(self.menuMaterials_Project.menuAction())
 
         self.retranslateUi(AseAtomInput)
         QtCore.QMetaObject.connectSlotsByName(AseAtomInput)
@@ -316,11 +413,14 @@ class Ui_AseAtomInput(object):
         self.menuConnect_Server.setTitle(_translate("AseAtomInput", "VASP"))
         self.menuAbout.setTitle(_translate("AseAtomInput", "About"))
         self.menuPlot.setTitle(_translate("AseAtomInput", "Plot"))
+        self.menuMaterials_Project.setTitle(_translate("AseAtomInput", "Materials Project"))
         self.actionFrom.setText(_translate("AseAtomInput", "Import cif"))
         self.actionServer.setText(_translate("AseAtomInput", "Connect Server"))
         self.actionVision.setText(_translate("AseAtomInput", "Version"))
         self.actionAbout_Author.setText(_translate("AseAtomInput", "About Author"))
         self.actionBand_Structure.setText(_translate("AseAtomInput", "Band Structure"))
+        self.actionCIF_Download.setText(_translate("AseAtomInput", "CIF Download"))
+        self.actionDescriptor_Design.setText(_translate("AseAtomInput", "Descriptor Design"))
 
 ### verison类
 class MyApp(QWidget):
@@ -453,17 +553,17 @@ class ASE_ui(Ui_AseAtomInput,QMainWindow):
         self.actionVision.triggered.connect(self.versionButton)
         self.actionAbout_Author.triggered.connect(self.showAboutAuthorDialog)
         self.actionBand_Structure.triggered.connect(self.plot_Band)
-
+        self.actionCIF_Download.triggered.connect(self.showCFIDownloader)
+        self.actionDescriptor_Design.triggered.connect(self.showDescriptorDesign)
     def showAboutAuthorDialog(self):
         self.about_author_dialog.exec_()
+
     def addAtom(self):
         element = self.AtomInPut.text()
         x = float(self.X_Input.text())
         y = float(self.Y_Input.text())
         z = float(self.Z_Input.text())
-
         self.atom_calculator.addAtom(element, x, y, z)
-
         self.AtomInPut.clear()
         self.X_Input.clear()
         self.X_Input.clear()
@@ -561,7 +661,13 @@ class ASE_ui(Ui_AseAtomInput,QMainWindow):
                     error_dialog = QErrorMessage(self)
                     error_dialog.showMessage(f'connect faild：{str(e)}')
 
-    
+    def showCFIDownloader(self):
+        self.CIFDownload = CIFDownloader()
+        self.CIFDownload.show()
+
+    def showDescriptorDesign(self):
+        self.DescriptorDesigner = FileSelectionWidget()
+        self.DescriptorDesigner.show()
 
 ### DONE 链接远程服务器类，用于获取远程服务器的连接信息
 class RemoteServerDialog(QDialog):

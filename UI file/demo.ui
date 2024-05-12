@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>686</width>
-    <height>424</height>
+    <height>418</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -208,7 +208,7 @@
      <x>0</x>
      <y>0</y>
      <width>686</width>
-     <height>26</height>
+     <height>22</height>
     </rect>
    </property>
    <widget class="QMenu" name="menu">
@@ -236,10 +236,18 @@
     </property>
     <addaction name="actionBand_Structure"/>
    </widget>
+   <widget class="QMenu" name="menuMaterials_Project">
+    <property name="title">
+     <string>Materials Project</string>
+    </property>
+    <addaction name="actionCIF_Download"/>
+    <addaction name="actionDescriptor_Design"/>
+   </widget>
    <addaction name="menu"/>
    <addaction name="menuConnect_Server"/>
    <addaction name="menuAbout"/>
    <addaction name="menuPlot"/>
+   <addaction name="menuMaterials_Project"/>
   </widget>
   <widget class="QStatusBar" name="statusbar"/>
   <action name="actionFrom">
@@ -265,6 +273,16 @@
   <action name="actionBand_Structure">
    <property name="text">
     <string>Band Structure</string>
+   </property>
+  </action>
+  <action name="actionCIF_Download">
+   <property name="text">
+    <string>CIF Download</string>
+   </property>
+  </action>
+  <action name="actionDescriptor_Design">
+   <property name="text">
+    <string>Descriptor Design</string>
    </property>
   </action>
  </widget>
