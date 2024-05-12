@@ -12,7 +12,7 @@ import warnings
 from PyQt5.QtCore import QThread, pyqtSignal
 import time
 # 启动PyQt应用
-app = QApplication(sys.argv)
+
 
 # AI推断
 # 用于执行Direct Inference的线程
@@ -266,7 +266,8 @@ class CHGnetApp(QMainWindow):
         self.thread.result_signal.connect(self.structure_optimization_window.displayResult)
         self.thread.start()
 
-    
-window = CHGnetApp()
-window.show()
-sys.exit(app.exec_())
+if __name__ == '__main__':
+    app = QApplication(sys.argv)
+    window = CHGnetApp()
+    window.show()
+    sys.exit(app.exec_())
