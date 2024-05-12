@@ -9,7 +9,7 @@ from chgnet.model.dynamics import MolecularDynamics
 from chgnet.model import StructOptimizer
 from pymatgen.core import Structure
 import warnings
-from PyQt5.QtCore import QThread, pyqtSignal
+from PyQt5.QtCore import QThread, pyqtSignal , Qt
 import time
 # 启动PyQt应用
 
@@ -154,9 +154,46 @@ class CHGnetApp(QMainWindow):
         
     def initUI(self):
         self.setWindowTitle(self.title)
+
+    # 使用更大的字体和美观的界面
+        self.setStyleSheet("""
+            QMainWindow {
+                font-size: 16px;
+            }
+            QPushButton {
+                background-color: #5AA469;
+                color: white;
+                border-style: outset;
+                border-width: 2px;
+                border-radius: 10px;
+                border-color: beige;
+                font: bold 14px;
+                min-width: 10em;
+                padding: 6px;
+            }
+            QPushButton:hover {
+                background-color: #66c280;
+            }
+            QLabel {
+                font: 14px;
+            }
+            QTextEdit {
+                border: 1px solid #ccc;
+                padding: 6px;
+            }
+            QComboBox {
+                min-height: 2em;
+                border-radius: 5px;
+            }
+        """)
+
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
         layout = QVBoxLayout(central_widget)
+        
+        # Adjust spacing and alignment
+        layout.setSpacing(10) 
+        layout.setAlignment(Qt.AlignTop)
         
         # 文件选择按钮和标签
         self.file_button = QPushButton("Load CIF file")
@@ -180,6 +217,9 @@ class CHGnetApp(QMainWindow):
         self.run_button = QPushButton("Run CHGnet")
         self.run_button.clicked.connect(self.runCHGnet)
         layout.addWidget(self.run_button)
+
+        # 对于layout里的组件设置外边距
+        layout.setContentsMargins(20, 20, 20, 20)
 
     def openFileNameDialog(self):
         # 打开文件对话框
