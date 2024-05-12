@@ -8,12 +8,11 @@ from chgnet.model.model import CHGNet
 from chgnet.model.dynamics import MolecularDynamics
 from pymatgen.core import Structure
 import warnings
-from PyQt5.QtCore import *
 
 # 启动PyQt应用
 app = QApplication(sys.argv)
 
-## 分子动力学参数设置窗口
+# 分子动力学参数设置窗口
 class WindowSetMolecularDynamics(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -72,24 +71,7 @@ class WindowSetMolecularDynamics(QDialog):
             "steps": int(self.steps_input.text()),
             "device": self.device_combo.currentText()
         }
-# 工作线程类
-class WorkerThread(QThread):
-    # 定义工作完成和错误信号
-    done = pyqtSignal()
-    error = pyqtSignal(Exception)
 
-    def __init__(self, function, *args, **kwargs):
-        super().__init__()
-        self.function = function
-        self.args = args
-        self.kwargs = kwargs
-      
-    def run(self):
-        try:
-            self.function(*self.args, **self.kwargs)
-            self.done.emit()
-        except Exception as e:
-            self.error.emit(e)
 
 
 # 主窗口
@@ -153,19 +135,7 @@ class CHGnetApp(QMainWindow):
             md_params_dialog = WindowSetMolecularDynamics(self)
             if md_params_dialog.exec_():
                 md_params = md_params_dialog.getParameters()
-
-                # 显示进度条对话框
-                self.progress_dialog = QProgressDialog("Running Molecular Dynamics simulation...", None, 0, 100, self)
-                self.progress_dialog.setWindowModality(Qt.WindowModal)
-                self.progress_dialog.setValue(0)
-                self.progress_dialog.show()
-                
-                # 创建工作线程并连接信号
-                self.worker_thread = WorkerThread(self.performMolecularDynamics, loaded_file, md_params)
-                self.worker_thread.done.connect(self.onSimulationDone)
-                self.worker_thread.error.connect(self.onSimulationError)
-                # 启动工作线程
-                self.worker_thread.start()
+                self.performMolecularDynamics(loaded_file, md_params)
         elif prediction_type == 'Structure Optimization':
             # 将来实现结构优化功能
             pass
@@ -174,39 +144,37 @@ class CHGnetApp(QMainWindow):
 
     ### 分子动力学模拟
     def performMolecularDynamics(self, file_path, parameters):
-        # 设置警告过滤
-        warnings.filterwarnings("ignore", module="pymatgen")
-        warnings.filterwarnings("ignore", module="ase")
+        try:
+            # 设置警告过滤
+            warnings.filterwarnings("ignore", module="pymatgen")
+            warnings.filterwarnings("ignore", module="ase")
 
-        # 加载CHGNet模型和结构
-        chgnet = CHGNet.load()
-        structure = Structure.from_file(file_path)
+            # 加载CHGNet模型和结构
+            chgnet = CHGNet.load()
+            structure = Structure.from_file(file_path)
 
-        # 创建分子动力学模拟对象
-        md = MolecularDynamics(
-            atoms=structure,
-            model=chgnet,
-            ensemble=parameters["ensemble"],
-            temperature=parameters["temperature"],
-            timestep=parameters["timestep"],
-            trajectory=parameters["trajectory"],
-            logfile=parameters["logfile"],
-            loginterval=parameters["loginterval"],
-            use_device=parameters["device"],
-        )
+            # 创建分子动力学模拟对象
+            md = MolecularDynamics(
+                atoms=structure,
+                model=chgnet,
+                ensemble=parameters["ensemble"],
+                temperature=parameters["temperature"],
+                timestep=parameters["timestep"],
+                trajectory=parameters["trajectory"],
+                logfile=parameters["logfile"],
+                loginterval=parameters["loginterval"],
+                use_device=parameters["device"],
+            )
 
-        # 运行模拟
-        md.run(parameters["steps"])
-    def onSimulationDone(self):
-        # 计算完成，关闭进度条对话框
-        self.progress_dialog.setValue(100)
-        self.progress_dialog.close()
-        QMessageBox.information(self, 'Simulation Completed', 'Molecular Dynamics simulation completed successfully!')
+            # 运行模拟
+            md.run(parameters["steps"])
+            
+            # 显示提示消息
+            self.result_text.setText("Molecular Dynamics simulation completed successfully!")
 
-    def onSimulationError(self, e):
-        # 发生错误，关闭进度条并显示错误信息
-        self.progress_dialog.close()
-        QMessageBox.critical(self, 'Simulation Error', 'An error occurred during the simulation:\n' + str(e))
+        except Exception as e:
+            QMessageBox.critical(self, 'Simulation Error', 'An error occurred during the simulation:\n' + str(e) + '\n\n' + traceback.format_exc())
+            self.result_text.setText('')
 
     ## 直接推理
     def performDirectInference(self, file_path):
