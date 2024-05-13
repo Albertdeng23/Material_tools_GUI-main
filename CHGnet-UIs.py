@@ -151,6 +151,7 @@ class CHGnetApp(QMainWindow):
         super().__init__()
         self.title = "CHGnet GUI"
         self.initUI()
+        self.output_text = ''
         
     def initUI(self):
         self.setWindowTitle(self.title)
@@ -262,8 +263,22 @@ class CHGnetApp(QMainWindow):
 
         # 启动线程进行计算
         self.thread = DirectInferenceThread(cif_path)
-        self.thread.result_signal.connect(self.direct_inference_window.displayResult)
+        self.thread.result_signal.connect(self.displayDirectInferenceResult)
         self.thread.start()
+    def displayDirectInferenceResult(self, prediction, elapsed_time):
+        result_str = f"Calculation Time: {elapsed_time:.2f} seconds\n\n"
+        for key, unit in [
+            ("energy", "eV/atom"),
+            ("forces", "eV/A"),
+            ("stress", "GPa"),
+            ("magmom", "mu_B"),
+        ]:
+           result_str += f"CHGNet-predicted {key} ({unit}):\n{prediction[key[0]]}\n\n"
+
+        # 将输出文本设置为文本框的文本
+        self.direct_inference_window.result_text.setText(result_str)
+        # 将输出文本存储在output_text变量中，用于后续显示
+        self.output_text += result_str
 
     ### 分子动力学模拟
     def performMolecularDynamics(self, file_path, parameters):
@@ -294,6 +309,7 @@ class CHGnetApp(QMainWindow):
             
             # 显示提示消息
             self.result_text.setText("Molecular Dynamics simulation completed successfully!")
+            self.result_text.setText(self.output_text)
 
         except Exception as e:
             QMessageBox.critical(self, 'Simulation Error', 'An error occurred during the simulation:\n' + str(e) + '\n\n' + traceback.format_exc())
@@ -303,8 +319,19 @@ class CHGnetApp(QMainWindow):
         self.structure_optimization_window.show()
 
         self.thread = StructureOptimizationThread(cif_path)
-        self.thread.result_signal.connect(self.structure_optimization_window.displayResult)
+        self.thread.result_signal.connect(self.displayStructureOptimizationResult)
         self.thread.start()
+    def displayStructureOptimizationResult(self, result, elapsed_time):
+        result_str = (
+            f"Calculation Time: {elapsed_time:.2f} seconds\n\n"
+            f"CHGNet relaxed structure:\n{result['final_structure']}\n\n"
+            f"relaxed total energy in eV: {result['trajectory'].energies[-1]}"
+        )
+
+        # 将输出文本设置为文本框的文本
+        self.structure_optimization_window.result_text.setText(result_str)
+        # 将输出文本存储在output_text变量中，用于后续显示
+        self.output_text += result_str
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
