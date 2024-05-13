@@ -10,9 +10,36 @@ from chgnet.model import StructOptimizer
 from pymatgen.core import Structure
 import warnings
 from PyQt5.QtCore import QThread, pyqtSignal , Qt
-import time
-# 启动PyQt应用
+from ase.io import read
+from ase.visualize import view
 
+import time
+
+## Traj文件读取
+class TrajViewer(QWidget):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("Traj Viewer")
+        self.layout = QVBoxLayout()
+        self.label = QLabel()
+        self.layout.addWidget(self.label)
+        self.setLayout(self.layout)
+
+    def load_traj_file(self, file_path):
+        atoms = read(file_path)
+        element_types = atoms.get_chemical_symbols()
+        cell_info = atoms.get_cell()
+
+        # Create a 3D atomic view using ASE's view() function
+        window = view(atoms)
+
+        # Display element types and cell information in the window
+        info_text = "Element Types: {}\n\nCell Information:\n{}".format(element_types, cell_info)
+        self.label.setText(info_text)
+
+        # 将元素类型和单元格信息显示在窗口中
+        info_text = "Element Types: {}\n\nCell Information:\n{}".format(element_types, cell_info)
+        self.label.setText(info_text)
 
 # AI推断
 # 用于执行Direct Inference的线程
@@ -114,7 +141,7 @@ class WindowSetMolecularDynamics(QDialog):
             "device": self.device_combo.currentText()
         }
 
-### Structure Optimization
+### Structure Optimization的ui类
 class StructureOptimizationThread(QThread):
     result_signal = pyqtSignal(object, float)
 
@@ -258,6 +285,7 @@ class CHGnetApp(QMainWindow):
     ## 直接推理
     def performDirectInference(self, cif_path):
         # 创建一个新窗口
+        
         self.direct_inference_window = windowDirectInference()
         self.direct_inference_window.show()
 
@@ -265,6 +293,7 @@ class CHGnetApp(QMainWindow):
         self.thread = DirectInferenceThread(cif_path)
         self.thread.result_signal.connect(self.displayDirectInferenceResult)
         self.thread.start()
+
     def displayDirectInferenceResult(self, prediction, elapsed_time):
         result_str = f"Calculation Time: {elapsed_time:.2f} seconds\n\n"
         for key, unit in [
@@ -288,7 +317,9 @@ class CHGnetApp(QMainWindow):
             warnings.filterwarnings("ignore", module="ase")
 
             # 加载CHGNet模型和结构
+            self.result_text.setText("Loading Model....")
             chgnet = CHGNet.load()
+            self.result_text.setText("Finish Load Model....")
             structure = Structure.from_file(file_path)
 
             # 创建分子动力学模拟对象
@@ -305,11 +336,16 @@ class CHGnetApp(QMainWindow):
             )
 
             # 运行模拟
+            self.result_text.setText("Start running....")
             md.run(parameters["steps"])
+            result_file_path = [md.trajectory , md.logfile]
             
             # 显示提示消息
-            self.result_text.setText("Molecular Dynamics simulation completed successfully!")
-            self.result_text.setText(self.output_text)
+            QMessageBox.information(self, 'Simulation Completed', f"Molecular Dynamics simulation completed successfully!\n\nResult File Path: .\\{result_file_path[0]},\nlogfile: .\\{result_file_path[1]}")
+            self.result_text.setText('')
+
+            self.Trajview = TrajViewer()
+            self.Trajview.load_traj_file(f".\\{result_file_path[0]}")
 
         except Exception as e:
             QMessageBox.critical(self, 'Simulation Error', 'An error occurred during the simulation:\n' + str(e) + '\n\n' + traceback.format_exc())
