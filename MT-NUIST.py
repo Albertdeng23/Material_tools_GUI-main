@@ -15,12 +15,11 @@ from ase.io import read
 from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtGui import *
 from PyQt5.QtCore import *
-
 from CIFDownload import CIFDownloader
 from DescriptorDesign import FileSelectionWidget
 
 
-### TODO 
+### TODO     
 #   1.使用VASP生成POSCAR , INCAR 之类的输入文件
 
 ###----------------------------------------------------------------------------------------------------------####
