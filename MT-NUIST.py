@@ -24,14 +24,38 @@ from DescriptorDesign import FileSelectionWidget
 
 ###----------------------------------------------------------------------------------------------------------####
 ##工具
+
+
 def timer(func):
     def wrapper(*args, **kwargs):
-        start_time = time.time()
-        _ = func(*args, **kwargs)
-        end_time = time.time()
-        execution_time = end_time - start_time
-        print(f"Function {func.__name__} executed in {execution_time:.2f} seconds.")
-        return execution_time
+        app = QApplication([])
+        window = QWidget()
+        layout = QVBoxLayout()
+        
+        label = QLabel()
+        layout.addWidget(label)
+        window.setLayout(layout)
+        window.setWindowTitle("执行时间统计")
+        window.setGeometry(100, 100, 200, 100)
+        window.show()
+        
+        def update_label(elapsed_time):
+            label.setText(f"执行时间: {elapsed_time:.4f} 秒")
+        
+        def execute_func():
+            start_time = time.time()
+            result = func(*args, **kwargs)
+            elapsed_time = time.time() - start_time
+            update_label(elapsed_time)
+            return result
+        
+        # 创建一个子线程来执行函数，以不阻塞主线程的方式实时更新窗口
+        from threading import Thread
+        thread = Thread(target=execute_func)
+        thread.start()
+        
+        app.exec_()
+        
     return wrapper
 
 
