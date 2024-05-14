@@ -9,8 +9,6 @@ from chgnet.model.dynamics import MolecularDynamics
 from chgnet.model import StructOptimizer
 from pymatgen.core import Structure
 from PyQt5.QtCore import QThread, pyqtSignal , Qt
-from ase.io import read
-from ase.visualize import view
 
 
 # 分子动力学参数设置窗口
@@ -26,7 +24,7 @@ class WindowSetMolecularDynamics(QDialog):
         self.ensemble_input = QLineEdit(self)
         self.ensemble_input.setText("nvt")
         self.temperature_input = QLineEdit(self)
-        self.temperature_input.setText("1000")
+        self.temperature_input.setText("10000")
         self.timestep_input = QLineEdit(self)
         self.timestep_input.setText("2")
         self.traj_input = QLineEdit(self)
@@ -34,9 +32,9 @@ class WindowSetMolecularDynamics(QDialog):
         self.logfile_input = QLineEdit(self)
         self.logfile_input.setText("md_out.log")
         self.loginterval_input = QLineEdit(self)
-        self.loginterval_input.setText("100")
+        self.loginterval_input.setText("10000")
         self.steps_input = QLineEdit(self)
-        self.steps_input.setText("50")
+        self.steps_input.setText("5000")
         self.device_combo = QComboBox(self)
         self.device_combo.addItem("cpu", "cpu")
         self.device_combo.addItem("cuda", "cuda")
