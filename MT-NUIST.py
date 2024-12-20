@@ -26,38 +26,6 @@ from DescriptorDesign import FileSelectionWidget
 ##工具
 
 
-def timer(func):
-    def wrapper(*args, **kwargs):
-        app = QApplication([])
-        window = QWidget()
-        layout = QVBoxLayout()
-        
-        label = QLabel()
-        layout.addWidget(label)
-        window.setLayout(layout)
-        window.setWindowTitle("执行时间统计")
-        window.setGeometry(100, 100, 200, 100)
-        window.show()
-        
-        def update_label(elapsed_time):
-            label.setText(f"执行时间: {elapsed_time:.4f} 秒")
-        
-        def execute_func():
-            start_time = time.time()
-            result = func(*args, **kwargs)
-            elapsed_time = time.time() - start_time
-            update_label(elapsed_time)
-            return result
-        
-        # 创建一个子线程来执行函数，以不阻塞主线程的方式实时更新窗口
-        from threading import Thread
-        thread = Thread(target=execute_func)
-        thread.start()
-        
-        app.exec_()
-        
-    return wrapper
-
 
 ### 绘制能带图
 def plot_band_structure(eigenval_file, figure):
@@ -670,6 +638,7 @@ class ASE_ui(Ui_AseAtomInput,QMainWindow):
                     self.ssh = paramiko.SSHClient()
                     self.ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
                     self.ssh.connect(self.hostname, username=self.username, password=self.password)
+                    print('successfully connect')
 
                     use_times = self.atom_calculator.run_vasp_calculation(self.ssh , self.file_path)
                     QMessageBox.information(self, f'successful', f'successfully connect to {self.hostname} \n Result file path : .\\Results \n Use Time: {use_times /60 : .2f} minute. ')
@@ -970,9 +939,9 @@ class AtomCalculator:
             self.energy = None
             self.forces = None
 
-    @timer
+
     def run_vasp_calculation(self, ssh, file_path):
-        try:
+
             # Initialize SSH client
 
             # Create a folder for VASP calculation
@@ -1066,8 +1035,6 @@ class AtomCalculator:
             print("VASP calculation completed successfully.")
             ssh.close()
 
-        except Exception as e:
-            print("An error occurred:", e)
 
 
 if __name__ == '__main__':
