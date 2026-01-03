@@ -60,11 +60,15 @@ python MT-NUIST.py
 3.  **运行**: 程序将自动上传文件并在远程目录 `VASP_calculation` 下执行计算，日志实时显示。
 4.  **绘图**: 点击菜单 `Plot` -> `Band Structure`，选择计算生成的 `EIGENVAL` 文件进行绘图。
 
+![MT-NUIST Interface](Picture/MT-NUIST.png)
+
 ### 工具二：CHGNet GUI
 
 ```bash
 python CHGnet_reload.py
 ```
+
+![CHGNet GUI Interface](Picture/CHGnet_GUI.png)
 
 **操作流程**:
 1.  **加载文件**: 点击 "Load CIF file" 选择本地的晶体结构文件。
