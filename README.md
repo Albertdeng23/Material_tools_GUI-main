@@ -1,4 +1,5 @@
 # Materials Science GUI Suite (材料科学计算 GUI 套件)
+(Core source codes for the NJmat software project)
 
 这是一个基于 Python 和 PyQt5 开发的材料科学图形用户界面套件。本项目包含两个核心工具，分别针对 **传统 DFT 计算流程 (VASP/ASE)** 和 **机器学习势能 (CHGNet)** 的应用场景。
 
