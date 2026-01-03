@@ -59,7 +59,7 @@ pip install pymatgen chgnet torch
 python MT-NUIST.py
 ```
 
-![MT-NUIST Interface](Picture/MT-NUIST.png)
+![MT-NUIST Interface](MT-NUIST.png)
 
 **操作流程**:
 1.  **建模**: 在左侧输入原子坐标或通过 `File` -> `Import cif` 导入结构。
@@ -77,7 +77,7 @@ python MT-NUIST.py
 python CHGnet_reload.py
 ```
 
-![CHGNet GUI Interface](Picture/CHGnet_GUI.png)
+![CHGNet GUI Interface](CHGnet_GUI.png)
 
 **操作流程**:
 1.  **加载文件**: 点击 "Load CIF file" 选择本地的晶体结构文件。
