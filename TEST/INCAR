@@ -1,0 +1,16 @@
+SYSTEM = perovskite_PBE
+PREC = Accurate
+ENCUT = 400
+ISPIN = 2
+MAGMOM = 8*0 0 -3 3
+LORBIT = 11
+ISTART = 0      
+ICHARG = 2      
+
+EDIFF = 1.0E-5
+ISMEAR = 0
+SIGMA = 0.05
+
+IALGO = 48      
+LWAVE = .TRUE.      
+LCHARG = .TRUE.
